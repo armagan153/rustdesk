@@ -764,6 +764,7 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     if let Ok(lic) = crate::platform::get_license_from_exe_name() {
         if !lic.host.is_empty() {
             a = lic.host;
+            b.clear();
         }
     }
     let mut b: Vec<String> = b
@@ -2120,7 +2121,7 @@ pub async fn get_key(sync: bool) -> String {
         options.remove("key").unwrap_or_default()
     };
     if key.is_empty() {
-        key = config::RS_PUB_KEY.to_owned();
+        key = "6nhlSz+TfP6ItFmEwa5fn65myG5XtwBEYkPAhCi2A2s=".to_owned();
     }
     key
 }
@@ -2645,6 +2646,15 @@ pub fn get_hwid() -> Bytes {
 
 #[inline]
 pub fn get_builtin_option(key: &str) -> String {
+    if matches!(
+        key,
+        "hide-network-settings"
+            | "hide-server-settings"
+            | "hide-proxy-settings"
+            | "hide-websocket-settings"
+    ) {
+        return "Y".to_string();
+    }
     config::BUILTIN_SETTINGS
         .read()
         .unwrap()
