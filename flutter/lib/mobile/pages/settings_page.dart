@@ -38,8 +38,6 @@ class SettingsPage extends StatefulWidget implements PageShape {
   State<SettingsPage> createState() => _SettingsState();
 }
 
-const url = '';
-
 enum KeepScreenOn {
   never,
   duringControlled,
