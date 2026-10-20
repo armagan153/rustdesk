@@ -763,7 +763,7 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::get_license_from_exe_name() {
         if !lic.host.is_empty() {
-            a = lic.host;
+            a = socket_client::check_port(lic.host, config::RENDEZVOUS_PORT);
             b.clear();
         }
     }

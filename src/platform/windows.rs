@@ -2151,7 +2151,7 @@ pub fn get_license_from_exe_name() -> ResultType<CustomServer> {
     match get_custom_server_from_string(&exe) {
         Ok(server) => Ok(server),
         Err(_) => Ok(CustomServer {
-            host: "195.174.102.27".to_string(),
+            host: "195.174.102.27:21116".to_string(),
             key: "6nhlSz+TfP6ItFmEwa5fn65myG5XtwBEYkPAhCi2A2s=".to_string(),
             api: "".to_string(),
             relay: "195.174.102.27:21117".to_string(),
@@ -2190,6 +2190,9 @@ pub fn is_win_10_or_greater() -> bool {
 pub fn bootstrap() -> bool {
     if let Ok(lic) = get_license_from_exe_name() {
         *config::EXE_RENDEZVOUS_SERVER.write().unwrap() = lic.host.clone();
+        if !lic.relay.is_empty() {
+            Config::set_option("relay-server".into(), lic.relay.clone());
+        }
     }
 
     #[cfg(debug_assertions)]
