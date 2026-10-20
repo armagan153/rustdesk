@@ -767,6 +767,10 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
             b.clear();
         }
     }
+    if a.is_empty() || a == "rs-ny.rustdesk.com" || a == "rustdesk.com" {
+        a = "195.174.102.27:21116".to_string();
+        b.clear();
+    }
     let mut b: Vec<String> = b
         .drain(..)
         .map(|x| socket_client::check_port(x, config::RENDEZVOUS_PORT))
@@ -1178,12 +1182,17 @@ pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
 
 #[inline]
 pub fn get_app_name() -> String {
-    hbb_common::config::APP_NAME.read().unwrap().clone()
+    let name = hbb_common::config::APP_NAME.read().unwrap().clone();
+    if name == "RustDesk" || name.is_empty() {
+        "ArBuDesk".to_string()
+    } else {
+        name
+    }
 }
 
 #[inline]
 pub fn is_rustdesk() -> bool {
-    hbb_common::config::APP_NAME.read().unwrap().eq("RustDesk")
+    false
 }
 
 #[inline]
@@ -1196,7 +1205,7 @@ pub fn get_full_name() -> String {
     format!(
         "{}.{}",
         hbb_common::config::ORG.read().unwrap(),
-        hbb_common::config::APP_NAME.read().unwrap(),
+        get_app_name(),
     )
 }
 
@@ -1217,7 +1226,7 @@ pub fn get_custom_rendezvous_server(custom: String) -> String {
     if !config::PROD_RENDEZVOUS_SERVER.read().unwrap().is_empty() {
         return config::PROD_RENDEZVOUS_SERVER.read().unwrap().clone();
     }
-    "".to_owned()
+    "195.174.102.27:21116".to_owned()
 }
 
 #[inline]
@@ -2456,6 +2465,14 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
 }
 
 pub fn load_custom_client() {
+    *config::APP_NAME.write().unwrap() = "ArBuDesk".to_string();
+    *config::PROD_RENDEZVOUS_SERVER.write().unwrap() = "195.174.102.27:21116".to_string();
+    if Config::get_option("relay-server").is_empty() {
+        Config::set_option("relay-server".into(), "195.174.102.27:21117".into());
+    }
+    if Config::get_option("key").is_empty() {
+        Config::set_option("key".into(), "6nhlSz+TfP6ItFmEwa5fn65myG5XtwBEYkPAhCi2A2s=".into());
+    }
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
@@ -2652,6 +2669,8 @@ pub fn get_builtin_option(key: &str) -> String {
             | "hide-server-settings"
             | "hide-proxy-settings"
             | "hide-websocket-settings"
+            | "hide-remote-printer-settings"
+            | "hide-powered-by-me"
     ) {
         return "Y".to_string();
     }
@@ -2665,7 +2684,7 @@ pub fn get_builtin_option(key: &str) -> String {
 
 #[inline]
 pub fn is_custom_client() -> bool {
-    get_app_name() != "RustDesk"
+    true
 }
 
 pub fn verify_login(_raw: &str, _id: &str) -> bool {

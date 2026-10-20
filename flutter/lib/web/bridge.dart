@@ -1728,7 +1728,7 @@ class RustdeskImpl {
 
   bool isDisableAccount({dynamic hint}) {
     // Checks HARD_SETTINGS["disable-account"] == "Y"
-    return mainGetHardOption(key: "disable-account", hint: hint) == "Y";
+    return true;
   }
 
   bool isDisableInstallation({dynamic hint}) {

@@ -485,19 +485,19 @@ class _DesktopHomePageState extends State<DesktopHomePage>
           launchUrl(Uri.parse(
               'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'));
           watchIsCanScreenRecording = true;
-        }, help: 'Help', link: translate("doc_mac_permission"));
+        });
       } else if (!isOutgoingOnly && !bind.mainIsProcessTrusted(prompt: false)) {
         return buildInstallCard("Permissions", "config_acc", "Configure",
             () async {
           bind.mainIsProcessTrusted(prompt: true);
           watchIsProcessTrust = true;
-        }, help: 'Help', link: translate("doc_mac_permission"));
+        });
       } else if (!bind.mainIsCanInputMonitoring(prompt: false)) {
         return buildInstallCard("Permissions", "config_input", "Configure",
             () async {
           bind.mainIsCanInputMonitoring(prompt: true);
           watchIsInputMonitoring = true;
-        }, help: 'Help', link: translate("doc_mac_permission"));
+        });
       } else if (!isOutgoingOnly &&
           !svcStopped.value &&
           bind.mainIsInstalled() &&
@@ -530,9 +530,7 @@ class _DesktopHomePageState extends State<DesktopHomePage>
             "",
             () async {},
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
-            help: 'Help',
-            link:
-                'https://rustdesk.com/docs/en/client/linux/#permissions-issue',
+
             closeButton: true,
             closeOption: keyShowSelinuxHelpTip,
           ));
@@ -542,14 +540,12 @@ class _DesktopHomePageState extends State<DesktopHomePage>
         LinuxCards.add(buildInstallCard(
             "Warning", "wayland_experiment_tip", "", () async {},
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
-            help: 'Help',
-            link: 'https://rustdesk.com/docs/en/client/linux/#x11-required'));
+));
       } else if (bind.mainIsLoginWayland()) {
         LinuxCards.add(buildInstallCard("Warning",
             "Login screen using Wayland is not supported", "", () async {},
             marginTop: LinuxCards.isEmpty ? 20.0 : 5.0,
-            help: 'Help',
-            link: 'https://rustdesk.com/docs/en/client/linux/#login-screen'));
+));
       }
       if (LinuxCards.isNotEmpty) {
         return Column(
