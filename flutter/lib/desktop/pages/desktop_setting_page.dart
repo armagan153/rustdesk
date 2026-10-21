@@ -2579,6 +2579,7 @@ class _AboutState extends State<_About> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              loadLogo(),
               const SizedBox(
                 height: 8.0,
               ),

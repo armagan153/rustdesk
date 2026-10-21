@@ -118,9 +118,55 @@ class _ConnectionPageState extends State<ConnectionPage> {
   }
 
   /// UI for software update.
-  /// If _updateUrl] is not empty, shows a button to update the software.
+  /// If [updateUrl] is not empty, shows a banner to update the software.
   Widget _buildUpdateUI(String updateUrl) {
-    return const SizedBox.shrink();
+    if (updateUrl.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final appName = bind.mainGetAppNameSync();
+    final newVer = bind.mainGetNewVersion();
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.system_update_alt_rounded,
+              color: Theme.of(context).colorScheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  "${translate("new-version-of-{$appName}-tip")} ($newVer)",
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Text(
+                  translate("Click to download"),
+                  style: TextStyle(
+                      color: Theme.of(context).hintColor, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final Uri url = Uri.parse(updateUrl);
+              await launchUrl(url, mode: LaunchMode.externalApplication);
+            },
+            child: Text(translate("Download")),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildRemoteIDTextField() {

@@ -173,7 +173,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   } else if (is_install_page) {
     window_title = app_name + L" - Install";
   } else {
-    window_title = app_name;
+    window_title = L"ArBu";
   }
   if (!window.CreateAndShow(window_title, origin, size, !is_cm_page)) {
       return EXIT_FAILURE;

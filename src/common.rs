@@ -1016,11 +1016,20 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 }
 
 pub fn check_software_update() {
-    if is_custom_client() {
-        return;
-    }
     let opt = LocalConfig::get_option(keys::OPTION_ENABLE_CHECK_UPDATE);
     if config::option2bool(keys::OPTION_ENABLE_CHECK_UPDATE, &opt) {
+        #[cfg(feature = "flutter")]
+        {
+            let current_url = SOFTWARE_UPDATE_URL.lock().unwrap().clone();
+            if !current_url.is_empty() {
+                let mut m = HashMap::new();
+                m.insert("name", "check_software_update_finish");
+                m.insert("url", &current_url);
+                if let Ok(data) = serde_json::to_string(&m) {
+                    let _ = crate::flutter::push_global_event(crate::flutter::APP_TYPE_MAIN, data);
+                }
+            }
+        }
         std::thread::spawn(move || allow_err!(do_check_software_update()));
     }
 }
@@ -1057,8 +1066,10 @@ pub(crate) fn release_id_from_update_url(update_url: &str) -> ResultType<String>
     let release_id = match segments.as_slice() {
         ["rustdesk", "rustdesk", "releases", "tag", release_id] => *release_id,
         ["rustdesk", "rustdesk", "releases", "tag", release_id, ""] => *release_id,
+        ["armagan153", "rustdesk", "releases", "tag", release_id] => *release_id,
+        ["armagan153", "rustdesk", "releases", "tag", release_id, ""] => *release_id,
         _ => bail!(
-            "Update URL is not a RustDesk release tag URL: {}",
+            "Update URL is not a valid release tag URL: {}",
             update_url
         ),
     };
@@ -1087,7 +1098,8 @@ pub(crate) fn url_has_explicit_port(raw_url: &str) -> bool {
 
 pub(crate) fn display_version_from_release_id(release_id: &str) -> ResultType<String> {
     let display_version = release_id.strip_prefix('v').unwrap_or(release_id);
-    let segments = display_version.split('.').collect::<Vec<_>>();
+    let base_version = display_version.split('-').next().unwrap_or(display_version);
+    let segments = base_version.split('.').collect::<Vec<_>>();
     if segments.len() != 3
         || segments.iter().any(|segment| {
             segment.is_empty()
@@ -1097,7 +1109,7 @@ pub(crate) fn display_version_from_release_id(release_id: &str) -> ResultType<St
     {
         bail!("Release id is not a stable display version: {}", release_id);
     }
-    if get_version_number(display_version) <= 0 {
+    if get_version_number(base_version) <= 0 {
         bail!("Release id has invalid display version: {}", release_id);
     }
     Ok(display_version.to_owned())
@@ -1108,13 +1120,58 @@ fn clear_software_update_url() {
     *update_url = String::new();
 }
 
-fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
-    let resp: hbb_common::VersionCheckResponse = serde_json::from_slice(&bytes)?;
-    let response_url = resp.url;
-    let release_id = release_id_from_update_url(&response_url)?;
-    let latest_release_version = display_version_from_release_id(&release_id)?;
+#[tokio::main(flavor = "current_thread")]
+pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
+    #[derive(serde::Deserialize)]
+    struct GithubRelease {
+        tag_name: String,
+        html_url: String,
+        #[serde(default)]
+        draft: bool,
+    }
 
-    if get_version_number(&latest_release_version) > get_version_number(crate::VERSION) {
+    let url = "https://api.github.com/repos/armagan153/rustdesk/releases";
+    let proxy_conf = Config::get_socks();
+    let tls_url = get_url_for_tls(url, &proxy_conf);
+    let tls_type = get_cached_tls_type(tls_url).unwrap_or(TlsType::Rustls);
+    let client = create_http_client_async(tls_type, false);
+    let req = client
+        .get(url)
+        .header("User-Agent", "ArBuDesk");
+    let resp = match req.send().await {
+        Ok(r) => r,
+        Err(_) => {
+            let tls_type = TlsType::NativeTls;
+            let client = create_http_client_async(tls_type, false);
+            client
+                .get(url)
+                .header("User-Agent", "ArBuDesk")
+                .send()
+                .await?
+        }
+    };
+
+    if !resp.status().is_success() {
+        bail!("Software update check failed with HTTP status: {}", resp.status());
+    }
+
+    let releases: Vec<GithubRelease> = resp.json().await?;
+    let mut found_url: Option<String> = None;
+
+    for rel in releases {
+        if rel.draft {
+            continue;
+        }
+        let tag = rel.tag_name.trim();
+        let release_id = tag.strip_prefix('v').unwrap_or(tag);
+        let base_version = release_id.split('-').next().unwrap_or(release_id);
+        if get_version_number(base_version) > get_version_number(crate::VERSION) {
+            found_url = Some(rel.html_url);
+            break;
+        }
+    }
+
+    if let Some(response_url) = found_url {
         #[cfg(feature = "flutter")]
         {
             let mut m = HashMap::new();
@@ -1129,55 +1186,6 @@ fn process_software_update_check_response(bytes: Bytes) -> ResultType<()> {
         clear_software_update_url();
     }
     Ok(())
-}
-
-// No need to check `danger_accept_invalid_cert` for now.
-// Because the url is always `https://api.rustdesk.com/version/latest`.
-#[tokio::main(flavor = "current_thread")]
-pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
-    let (request, url) =
-        hbb_common::version_check_request(hbb_common::VER_TYPE_RUSTDESK_CLIENT.to_string());
-    let proxy_conf = Config::get_socks();
-    let tls_url = get_url_for_tls(&url, &proxy_conf);
-    let tls_type = get_cached_tls_type(tls_url);
-    let is_tls_not_cached = tls_type.is_none();
-    let tls_type = tls_type.unwrap_or(TlsType::Rustls);
-    let client = create_http_client_async(tls_type, false);
-    let latest_release_response: ResultType<_> = match client.post(&url).json(&request).send().await
-    {
-        Ok(resp) => Ok((tls_type, resp)),
-        Err(err) => {
-            if is_tls_not_cached && err.is_request() {
-                let tls_type = TlsType::NativeTls;
-                let client = create_http_client_async(tls_type, false);
-                match client.post(&url).json(&request).send().await {
-                    Ok(resp) => Ok((tls_type, resp)),
-                    Err(err) => Err(err.into()),
-                }
-            } else {
-                Err(err.into())
-            }
-        }
-    };
-    let response_bytes = match latest_release_response {
-        Ok((used_tls_type, response)) => {
-            upsert_tls_cache(tls_url, used_tls_type, false);
-            let status = response.status();
-            if !status.is_success() {
-                Err(anyhow!(
-                    "Software update check failed with HTTP status: {status}"
-                ))
-            } else {
-                response.bytes().await.map_err(|err| err.into())
-            }
-        }
-        Err(err) => Err(err),
-    };
-    let result = response_bytes.and_then(process_software_update_check_response);
-    if result.is_err() {
-        clear_software_update_url();
-    }
-    result
 }
 
 #[inline]

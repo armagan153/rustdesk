@@ -1059,7 +1059,12 @@ jobs:
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          APP_SRC="./flutter/build/macos/Build/Products/Release"
+          if [ -d "$APP_SRC/RustDesk.app" ]; then
+            mv "$APP_SRC/RustDesk.app" "$APP_SRC/ArBuDesk.app"
+          fi
+          codesign --force --deep --sign - "$APP_SRC/ArBuDesk.app" || true
+          create-dmg --volname "ArBuDesk" --icon "ArBuDesk.app" 200 190 --hide-extension "ArBuDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg "$APP_SRC/ArBuDesk.app"
 
       - name: Upload unsigned macOS app
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -1613,6 +1618,15 @@ jobs:
           files: |
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
+      - name: Copy ArBuDesk files for Android
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          if [ -f "signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk" ]; then
+            cp "signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk" "signed-apk/ArBuDesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk"
+            cp "signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk" "signed-apk/ArBuDesk-Android-${{ matrix.job.arch }}.apk"
+          fi
+
       - name: Publish unsigned apk package
         if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
@@ -1621,6 +1635,7 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: |
             signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
+            signed-apk/ArBuDesk-*.apk
 
   build-rustdesk-android-universal:
     needs: [build-rustdesk-android]
@@ -1798,6 +1813,15 @@ jobs:
           files: |
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
+      - name: Copy ArBuDesk files for Android Universal
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          if [ -f "signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk" ]; then
+            cp "signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk" "signed-apk/ArBuDesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk"
+            cp "signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk" "signed-apk/ArBuDesk-Android-universal.apk"
+          fi
+
       - name: Publish unsigned apk package
         if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
@@ -1806,6 +1830,7 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: |
             signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
+            signed-apk/ArBuDesk-*.apk
 
   build-rustdesk-linux:
     needs: [generate-bridge]
@@ -2106,6 +2131,16 @@ jobs:
                 mv "$name" /workspace/"${name%%.rpm}-suse.rpm"
             done
 
+      - name: Copy ArBuDesk files for Linux
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          for f in rustdesk-*.deb rustdesk-*.rpm; do
+            if [ -f "$f" ]; then
+              cp "$f" "${f/rustdesk/ArBuDesk}"
+            fi
+          done
+
       - name: Publish debian/rpm package
         if: env.UPLOAD_ARTIFACT == 'true'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
@@ -2115,6 +2150,8 @@ jobs:
           files: |
             rustdesk-*.deb
             rustdesk-*.rpm
+            ArBuDesk-*.deb
+            ArBuDesk-*.rpm
 
       - name: Upload deb
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -2480,6 +2517,7 @@ jobs:
     needs: [validate-update-metadata-keys]
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:

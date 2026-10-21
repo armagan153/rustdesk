@@ -428,6 +428,17 @@ class _DesktopHomePageState extends State<DesktopHomePage>
   }
 
   Widget buildHelpCards(String updateUrl) {
+    if (updateUrl.isNotEmpty && !isCardClosed) {
+      final appName = bind.mainGetAppNameSync();
+      final newVer = bind.mainGetNewVersion();
+      return buildInstallCard(
+          "Status",
+          "${translate("new-version-of-{$appName}-tip")} ($newVer).",
+          "Download", () async {
+        final Uri url = Uri.parse(updateUrl);
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }, closeButton: true, help: 'Changelog', link: updateUrl);
+    }
     if (systemError.isNotEmpty) {
       return buildInstallCard("", systemError, "", () {});
     }

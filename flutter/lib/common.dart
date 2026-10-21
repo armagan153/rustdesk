@@ -3024,7 +3024,7 @@ String getWindowName({WindowType? overrideType}) {
   final name = bind.mainGetAppNameSync();
   switch (overrideType ?? kWindowType) {
     case WindowType.Main:
-      return name;
+      return "ArBu";
     case WindowType.FileTransfer:
       return "File Transfer - $name";
     case WindowType.ViewCamera:
@@ -3788,7 +3788,7 @@ class _LogoState extends State<_Logo> {
             },
           );
           return Container(
-            constraints: BoxConstraints(maxWidth: 300, maxHeight: 60),
+            constraints: BoxConstraints(maxWidth: 300, maxHeight: 85),
             child: image,
           ).marginOnly(left: 12, right: 12, top: 12);
         }
@@ -3798,18 +3798,29 @@ class _LogoState extends State<_Logo> {
   }
 }
 
-// max 300 x 60
+// max 300 x 85
 Widget loadLogo() => const _Logo();
 
 Widget loadIcon(double size) {
-  return Image.asset('assets/icon.png',
+  return Builder(builder: (ctx) {
+    final isDark = Theme.of(ctx).brightness == Brightness.dark;
+    final asset = isDark ? 'assets/icon_dark.png' : 'assets/icon_light.png';
+    return Image.asset(
+      asset,
       width: size,
       height: size,
-      errorBuilder: (ctx, error, stackTrace) => SvgPicture.asset(
-            'assets/icon.svg',
-            width: size,
-            height: size,
-          ));
+      errorBuilder: (c, error, stackTrace) => Image.asset(
+        'assets/icon.png',
+        width: size,
+        height: size,
+        errorBuilder: (c2, err2, st2) => SvgPicture.asset(
+          'assets/icon.svg',
+          width: size,
+          height: size,
+        ),
+      ),
+    );
+  });
 }
 
 var imcomingOnlyHomeSize = Size(280, 300);
@@ -4047,18 +4058,16 @@ void earlyAssert() {
 
 void checkUpdate() {
   if (!isWeb) {
-    if (!bind.isCustomClient()) {
-      platformFFI.registerEventHandler(
-          kCheckSoftwareUpdateFinish, kCheckSoftwareUpdateFinish,
-          (Map<String, dynamic> evt) async {
-        if (evt['url'] is String) {
-          stateGlobal.updateUrl.value = evt['url'];
-        }
-      });
-      Timer(const Duration(seconds: 1), () async {
-        bind.mainGetSoftwareUpdateUrl();
-      });
-    }
+    platformFFI.registerEventHandler(
+        kCheckSoftwareUpdateFinish, kCheckSoftwareUpdateFinish,
+        (Map<String, dynamic> evt) async {
+      if (evt['url'] is String) {
+        stateGlobal.updateUrl.value = evt['url'];
+      }
+    });
+    Timer(const Duration(seconds: 1), () async {
+      bind.mainGetSoftwareUpdateUrl();
+    });
   }
 }
 
