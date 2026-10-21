@@ -1538,15 +1538,18 @@ pub fn rename_exe_cmd(src_exe: &str, path: &str) -> ResultType<String> {
         .to_string_lossy()
         .to_string();
     let app_name = crate::get_app_name();
-    if src_exe_filename == format!("{app_name}.exe") {
-        Ok("".to_owned())
-    } else {
-        Ok(format!(
-            "
-        move /Y \"{path}\\{src_exe_filename}\" \"{path}\\{app_name}.exe\"
-        ",
-        ))
+    let mut cmd = String::new();
+    if src_exe_filename != format!("{app_name}.exe") {
+        cmd.push_str(&format!(
+            "if exist \"{path}\\{src_exe_filename}\" move /Y \"{path}\\{src_exe_filename}\" \"{path}\\{app_name}.exe\"\n"
+        ));
     }
+    if app_name.to_lowercase() != "rustdesk" {
+        cmd.push_str(&format!(
+            "if exist \"{path}\\rustdesk.exe\" move /Y \"{path}\\rustdesk.exe\" \"{path}\\{app_name}.exe\"\n"
+        ));
+    }
+    Ok(cmd)
 }
 
 #[inline]
@@ -1770,7 +1773,6 @@ chcp 65001
 md \"{path}\"
 {copy_exe}
 {rename_exe}
-if exist \"{path}\\rustdesk.exe\" move /Y \"{path}\\rustdesk.exe\" \"{path}\\{app_name}.exe\"
 reg add {subkey} /f
 reg add {subkey} /f /v DisplayIcon /t REG_SZ /d \"{display_icon}\"
 reg add {subkey} /f /v DisplayName /t REG_SZ /d \"{app_name}\"
@@ -3610,7 +3612,6 @@ taskkill /F /IM {app_name}.exe{filter}
 {reg_cmd}
 {copy_exe}
 {rename_exe}
-if exist "{path}\\rustdesk.exe" move /Y "{path}\\rustdesk.exe" "{path}\\{app_name}.exe"
 {remove_meta_toml}
 {restore_service_cmd}
 {uninstall_printer_cmd}

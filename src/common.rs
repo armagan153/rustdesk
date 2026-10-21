@@ -1098,8 +1098,7 @@ pub(crate) fn url_has_explicit_port(raw_url: &str) -> bool {
 
 pub(crate) fn display_version_from_release_id(release_id: &str) -> ResultType<String> {
     let display_version = release_id.strip_prefix('v').unwrap_or(release_id);
-    let base_version = display_version.split('-').next().unwrap_or(display_version);
-    let segments = base_version.split('.').collect::<Vec<_>>();
+    let segments = display_version.split('.').collect::<Vec<_>>();
     if segments.len() != 3
         || segments.iter().any(|segment| {
             segment.is_empty()
@@ -1109,7 +1108,7 @@ pub(crate) fn display_version_from_release_id(release_id: &str) -> ResultType<St
     {
         bail!("Release id is not a stable display version: {}", release_id);
     }
-    if get_version_number(base_version) <= 0 {
+    if get_version_number(display_version) <= 0 {
         bail!("Release id has invalid display version: {}", release_id);
     }
     Ok(display_version.to_owned())
